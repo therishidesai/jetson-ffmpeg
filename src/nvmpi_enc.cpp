@@ -186,6 +186,24 @@ static int setup_output_dmabuf(nvmpictx *ctx, uint32_t num_buffers )
 }
 */
 
+char* get_pixfmt_string(uint32_t pixfmt)
+{
+    switch (pixfmt)
+    {
+        case V4L2_PIX_FMT_YUV420M:          return "V4L2_PIX_FMT_YUV420M";
+        case V4L2_PIX_FMT_NV12M:            return "V4L2_PIX_FMT_NV12M";
+        case V4L2_PIX_FMT_YUV444M:          return "V4L2_PIX_FMT_YUV444M";
+        case V4L2_PIX_FMT_NV24M:            return "V4L2_PIX_FMT_NV24M";
+        case V4L2_PIX_FMT_P010M:            return "V4L2_PIX_FMT_P010M";
+        case V4L2_PIX_FMT_NV24_10LE:        return "V4L2_PIX_FMT_NV24_10LE";
+        case V4L2_PIX_FMT_H264:             return "V4L2_PIX_FMT_H264";
+        case V4L2_PIX_FMT_H265:             return "V4L2_PIX_FMT_H265";
+        case V4L2_PIX_FMT_VP8:              return "V4L2_PIX_FMT_VP8";
+        case V4L2_PIX_FMT_VP9:              return "V4L2_PIX_FMT_VP9";
+        default:                            return "";
+    }
+}
+
 
 nvmpictx* nvmpi_create_encoder(nvEncParam* param)
 {
@@ -320,13 +338,16 @@ nvmpictx* nvmpi_create_encoder(nvEncParam* param)
 	}
 	if(ctx->blocking_mode)
 	{
+          printf("creating encoder in blocking mode\n");
 		ctx->enc=NvVideoEncoder::createVideoEncoder("enc0");
 	}
 	else
 	{
+          printf("creating encoder in non-blocking mode\n");
 		ctx->enc = NvVideoEncoder::createVideoEncoder("enc0", O_NONBLOCK);
 	}
-	TEST_ERROR(!ctx->enc, "Could not create encoder",ret);
+	TEST_ERROR(!ctx->enc, "Could not create encoder\n",ret);
+        printf("Encode pixel format : %s\n", get_pixfmt_string(ctx->encoder_pixfmt));
 
 	ret = ctx->enc->setCapturePlaneFormat(ctx->encoder_pixfmt, ctx->width,ctx->height, NVMPI_ENC_CHUNK_SIZE);
 
