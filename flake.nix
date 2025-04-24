@@ -34,6 +34,31 @@
               ln -sf ${l4t-multimedia}/lib/libv4l/plugins/nv/libv4l2_nvvideocodec.so $out/lib/libv4l/plugins/libv4l2_nvvideocodec.so
             '';
         });
+
+        jetson_ffmpeg_patcher = pkgs.writeShellApplication {
+          name = "jetson_ffmpeg_patcher";
+          runtimeInputs = [ pkgs.gnused ];
+          text = builtins.readFile ./ffpatch.sh;
+          checkPhase = "";
+        };
+
+        jetson_ffmpeg_src = ./.;
+
+        mkFfmpeg = ffmpeg: ffmpeg.overrideAttrs (final: prev: {
+            # patches = prev.patches ++ [ ./ffmpeg_patches/ffmpeg4.4_nvmpi.patch ];
+            postUnpack = ''
+              cp -r ${jetson_ffmpeg_src}/ffmpeg_dev ffmpeg_dev
+
+              ${jetson_ffmpeg_patcher}/bin/jetson_ffmpeg_patcher ./ffmpeg
+
+            '';
+            configureFlags = prev.configureFlags ++ [ "--enable-nvmpi" ];
+            nativeBuildInputs = prev.nativeBuildInputs ++ [ pkgs.pkg-config ];
+            buildInputs = let
+              buildInputsNoV4l = builtins.filter (x: !pkgs.lib.hasInfix "v4l" x.name) prev.buildInputs;
+            in buildInputsNoV4l ++ [ self.packages."${system}".ffmpeg-nvmpi l4t-multimedia-v4l ];
+            doCheck = false;
+          });
       in
       with pkgs;
       {
@@ -57,15 +82,10 @@
             ];
           };
 
-          jetson-ffmpeg-4 = pkgs.ffmpeg_4-full.overrideAttrs (final: prev: {
-            patches = prev.patches ++ [ ./ffmpeg_patches/ffmpeg4.4_nvmpi.patch ];
-            configureFlags = prev.configureFlags ++ [ "--enable-nvmpi" ];
-            nativeBuildInputs = prev.nativeBuildInputs ++ [ pkg-config ];
-            buildInputs = let
-              buildInputsNoV4l = builtins.filter (x: !lib.hasInfix "v4l" x.name) prev.buildInputs;
-            in buildInputsNoV4l ++ [ self.packages."${system}".ffmpeg-nvmpi l4t-multimedia-v4l ];
-            doCheck = false;
-          });
+          jetson-ffmpeg_4-full = mkFfmpeg pkgs.ffmpeg_4-full;
+          jetson-ffmpeg_4-headless = mkFfmpeg pkgs.ffmpeg_4-full;
+          jetson-ffmpeg_6-full = mkFfmpeg pkgs.ffmpeg_6-full;
+          jetson-ffmpeg_6-headless = mkFfmpeg pkgs.ffmpeg_6-headless;
         };
       }
     );
