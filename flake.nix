@@ -22,24 +22,16 @@
         # version. We need to rebuild it from source to ensure it can find nvidia's
         # v4l plugins in the right location. Nvidia's version has the path hardcoded.
         # See https://nv-tegra.nvidia.com/tegra/v4l2-src/v4l2_libs.git
-        l4t-multimedia-v4l = pkgs.libv4l.overrideAttrs ({ nativeBuildInputs ? [ ], patches ? [ ], postPatch ? "", postFixup ? "", ... }: {
+        l4t-multimedia-v4l = pkgs.libv4l.overrideAttrs ({ nativeBuildInputs ? [ ], patches ? [ ], postPatch ? "", postInstall ? "", ... }: {
           nativeBuildInputs = nativeBuildInputs ++ [ pkgs.dpkg ];
           patches = patches ++ pkgs.lib.singleton (pkgs.fetchurl {
             url = "https://raw.githubusercontent.com/OE4T/meta-tegra/85aa94e16104debdd01a3f61a521b73d86340a9f/recipes-multimedia/libv4l2/libv4l2-minimal/0003-Update-conversion-defaults-to-match-NVIDIA-sources.patch";
             sha256 = "sha256-gzWMilEbxkQfbArkCgFSYs9A06fdciCijYYCCpEiHOc=";
           });
-          # Use a placeholder path that we replace in the l4t-multimedia derivation, We avoid an infinite recursion problem this way.
-          postPatch = postPatch + ''
-      substituteInPlace lib/libv4l2/v4l2-plugin.c \
-              --replace LIBV4L2_PLUGIN_DIR '"/nix/store/00000000000000000000000000000000-nvidia-l4t-multimedia-v4l/lib/libv4l/plugins/nv"'
-'';
 
-          postFixup = postFixup + ''
-              mkdir $out/lib/libv4l/plugins/nv
-              sed -i "s#/nix/store/00000000000000000000000000000000-nvidia-l4t-multimedia-v4l#$out#" $out/lib/libv4l2.so.0.0.0 $out/lib/libv4lconvert.so.0.0.0
-
-              ln -sf ${l4t-multimedia}/lib/libv4l/plugins/nv/libv4l2_nvcuvidvideocodec.so $out/lib/libv4l/plugins/nv/libv4l2_nvcuvidvideocodec.so
-              ln -sf ${l4t-multimedia}/lib/libv4l/plugins/nv/libv4l2_nvvideocodec.so $out/lib/libv4l/plugins/nv/libv4l2_nvvideocodec.so
+          postInstall = postInstall + ''
+              ln -sf ${l4t-multimedia}/lib/libv4l/plugins/nv/libv4l2_nvcuvidvideocodec.so $out/lib/libv4l/plugins/libv4l2_nvcuvidvideocodec.so
+              ln -sf ${l4t-multimedia}/lib/libv4l/plugins/nv/libv4l2_nvvideocodec.so $out/lib/libv4l/plugins/libv4l2_nvvideocodec.so
             '';
         });
       in
@@ -68,6 +60,7 @@
           jetson-ffmpeg-4 = pkgs.ffmpeg_4-full.overrideAttrs (final: prev: {
             patches = prev.patches ++ [ ./ffmpeg_patches/ffmpeg4.4_nvmpi.patch ];
             configureFlags = prev.configureFlags ++ [ "--enable-nvmpi" ];
+            nativeBuildInputs = prev.nativeBuildInputs ++ [ pkg-config ];
             buildInputs = let
               buildInputsNoV4l = builtins.filter (x: !lib.hasInfix "v4l" x.name) prev.buildInputs;
             in buildInputsNoV4l ++ [ self.packages."${system}".ffmpeg-nvmpi l4t-multimedia-v4l ];
